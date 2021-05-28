@@ -1,0 +1,288 @@
+﻿<link rel="stylesheet" type="text/css" href="~/Content/css/orderModel.css">
+
+@{
+    ViewBag.Title = "Index";
+}
+
+<div class="row justify-content-center">
+	<div class="card col-5 ml-3">
+		<div class="card-header">
+			<h3>
+				<strong class="text-primary">ĐƠN ĐÃ XÁC NHẬN</strong>
+			</h3>
+			<i class="fas fa-ellipsis-h"></i>
+		</div>
+		<div class="card-content">
+			<table>
+				<thead>
+					<tr>
+						<th>Id</th>
+						<th>Trạng thái</th>
+						<th>Ngày đặt</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody class="tbl-order" id="tblOrderConfirmed">
+				</tbody>
+			</table>
+		</div>
+	</div>
+	<div class="card col-5 ml-3">
+		<div class="card-header">
+			<h3>
+				<strong class="text-primary">ĐƠN ĐANG VẬN CHUYỂN</strong>
+			</h3>
+			<i class="fas fa-ellipsis-h"></i>
+		</div>
+		<div class="card-content">
+			<table>
+				<thead>
+					<tr>
+						<th>Id</th>
+						<th>Trạng thái</th>
+						<th>Ngày đặt</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody class="tbl-order" id="tblOrderShipping">
+				</tbody>
+			</table>
+		</div>
+	</div>
+	<div class="card col-5 ml-3">
+		<div class="card-header">
+			<h3>
+				<strong class="text-primary">ĐƠN HOÀN THÀNH</strong>
+			</h3>
+			<i class="fas fa-ellipsis-h"></i>
+		</div>
+		<div class="card-content">
+			<table>
+				<thead>
+					<tr>
+						<th>Id</th>
+						<th>Trạng thái</th>
+						<th>Ngày đặt</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody class="tbl-order" id="tblOrderCompleted">
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+
+<div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLongTitle">Chi tiết đơn</h5>
+            </div>
+            <div class="modal-body">
+                <article class="card">
+                    <header class="card-header"><strong>Mã đơn: </strong><span id="order-id-header"></span> </header>
+					<div class="card-body">
+						<h6><strong>Khách hàng: </strong><span id="order-customer-name"></span></h6>
+						<h6><strong>Ghi chú: </strong><span id="order-note"></span></h6>
+						<article class="card">
+							<div class="card-body row">
+								<div class="col"> <strong>Ngày tạo đơn:</strong> <br><span id="order-date"></span> </div>
+								<div class="col"> <strong>Số điện thoại khách:</strong><br /> <span id="order-customer-phone"></span> </div>
+								<div class="col"> <strong>Thanh toán:</strong> <br> <span id="order-discount"></span> </div>
+								<div class="col"> <strong>Vận chuyển:</strong> <br> None </div>
+							</div>
+						</article>
+						<div class="track">
+							<div class="step step-confirmed"> <span class="icon"> <i class="fa fa-check"></i> </span> <span class="text">Xác nhận đơn hàng</span> </div>
+							<div class="step step-delivery"> <span class="icon"> <i class="fa fa-truck"></i> </span> <span class="text"> Đang vận chuyển </span> </div>
+							<div class="step step-complete"> <span class="icon"> <i class="fa fa-box"></i> </span> <span class="text">Khách đã nhận</span> </div>
+						</div>
+						<hr>
+						<div>
+							<div class="map-order">
+								<div class="embed-responsive map-order" id="map-order">
+									
+								</div>
+							</div>
+						</div>
+						<hr>
+						<ul class="row" id="list-order-food">
+
+						</ul>
+					</div>
+                </article>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btnClose" data-dismiss="modal">Thoát</button>
+                <button type="button" class="btn btn-primary change-status-confirm" data-status="Shipping">Nhận đơn</button>
+                <button type="button" class="btn btn-success change-status-success" data-status="Completed">Hoàn thành giao</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+	<script type="text/javascript">
+        $(document).ready(function () {
+
+			$('#btnClose').on('click', function () {
+				$('#map-order').empty()
+				$('#exampleModalCenter').on('hidden.bs.modal', function () {
+					$('#exampleModalCenter').modal('dispose')
+				});
+			})
+
+            $('.tbl-order').on('click', '.open-AddBookDialog',function () {
+                const orderId = $(this).data('id')
+                $.ajax({
+                    url: '@Url.Action("getOrderById", "Order")',
+                    type: 'GET',
+                    data: { id: orderId},
+                    contentType: 'application/json;charset=utf-8',
+                    success: function (data) {
+                        const order = JSON.parse(data.Order)
+                        const listUser = JSON.parse(data.listUser)
+                        const listFood = JSON.parse(data.listFood)
+						$('#map-order').append("<div id='osm-map'></div>")
+						$('#exampleModalCenter').on('shown.bs.modal', function (e) {
+
+
+							let element = $('#osm-map').get(0)
+                            element.style = 'height:100%;';
+                            if (!navigator.geolocation) {
+                                alert("Xin hãy bật quyền location '.'")
+                            } else {
+                                navigator.geolocation.getCurrentPosition((position) => {
+                                    let latitude = position.coords.latitude;
+                                    let longitude = position.coords.longitude;
+                                    let map = L.map(element)
+                                    let target = L.latLng(latitude, longitude)
+                                    let target2 = L.latLng(order.order_latitude, order.order_longitude)
+                                    L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+                                        attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+                                    }).addTo(map)
+                                    let control = L.Routing.control({
+                                        waypoints: [
+                                            L.latLng(latitude, longitude),
+                                            L.latLng(order.order_latitude, order.order_longitude)
+                                        ],
+                                        router: new L.Routing.osrmv1({
+                                            profile: 'car'
+                                        }),
+                                    }).addTo(map)
+
+                                    control.on('routesfound', function (e) {
+                                        console.log(e)
+                                        let routes = e.routes
+                                        let summary = routes[0].summary
+                                        alert('Tổng quãng đường ' + summary.totalDistance / 1000 + ' km và thời gian đi dự kiến là ' + Math.round(summary.totalTime % 3600 / 60) + ' phút nên là hãy cố lên bạn nhé ^^')
+                                    })
+
+                                    map.setView(target, 14)
+                                    L.marker(target2).addTo(map)
+                                    L.marker(target).addTo(map)
+                                })
+                            }
+
+                            $('.step').removeClass('active')
+							$('.change-status-confirm').removeClass('fade')
+							$('.change-status-success').removeClass('fade')
+                            if (order.order_status === "Order confirmed") {
+                                $('.step-confirmed').addClass('active')
+                                $('.change-status-success').addClass('fade')
+
+                            }
+                            if (order.order_status === "Shipping") {
+                                $('.step-confirmed').addClass('active')
+
+                                $('.change-status-confirm').addClass('fade')
+
+                            }
+                            if (order.order_status === "Completed") {
+                                $('.step').addClass('active')
+								$('.change-status-confirm').addClass('fade')
+								$('.change-status-success').addClass('fade')
+                            }
+                            $('#order-id-header').text(order.order_id)
+                            $('#order-customer-name').text(listUser[0].user_name)
+                            $('#order-date').text(order.order_created_date)
+                            $('#order-customer-phone').text(listUser[0].user_phone)
+                            $('#order-note').text(order.order_note)
+                            $('#list-order-food.row').empty()
+                            for (var item of listFood) {
+                                $('#list-order-food').append(
+                                    '<li class="col-md-4">' +
+                                    '<figure class="itemside mb-3">' +
+                                    '<div class="aside"><img src="/assets/' + item.Food.food_image + '" class="img-sm border"></div>' +
+                                    '<figcaption class="info align-self-center">' +
+                                    '<p class="title"><strong>' + item.Food.food_name + '</strong> <br> ' + item.Food.food_price + ' VNĐ </p> <span class="text-muted">' + item.Quantity + ' cái </span>' +
+                                    '</figcaption>' +
+                                    '</figure>' +
+                                    '</li>'
+                                )
+                            }
+                        })
+                    },
+                    error: function (e) {
+                        console.log(e);
+                    }
+                })
+            })
+
+			$('.change-status-confirm').on('click', function () {
+                const statusOrder = $(this).data('status')
+                let sendObject = {
+                    'id': $('#order-id-header').text(),
+                    'status': statusOrder
+                }
+                $.ajax({
+                    url: '@Url.Action("changeStatus", "Order")',
+                    type: 'POST',
+                    data: JSON.stringify(sendObject),
+                    contentType: 'application/json;charset=utf-8',
+                    success: function () {
+                        alert('Chốt đơn!!!')
+                        //location.reload()
+                        $('#exampleModalCenter').modal('hide')
+						$('#map-order').empty()
+						$('#exampleModalCenter').on('hidden.bs.modal', function () {
+							$('#exampleModalCenter').modal('dispose')
+						});
+                    },
+                    error: function (e) {
+                        console.log(e);
+                    }
+                })
+            })
+
+			$('.change-status-success').on('click', function () {
+                const statusOrder = $(this).data('status')
+                let sendObject = {
+                    'id': $('#order-id-header').text(),
+                    'status': statusOrder
+                }
+                $.ajax({
+                    url: '@Url.Action("changeStatus", "Order")',
+                    type: 'POST',
+                    data: JSON.stringify(sendObject),
+                    contentType: 'application/json;charset=utf-8',
+                    success: function () {
+                        alert('Chốt đơn!!!')
+                        //location.reload()
+                        $('#exampleModalCenter').modal('hide')
+						$('#map-order').empty()
+						$('#exampleModalCenter').on('hidden.bs.modal', function () {
+							$('#exampleModalCenter').modal('dispose')
+						});
+                    },
+                    error: function (e) {
+                        console.log(e);
+                    }
+                })
+            })
+        })
+	</script>
+}
+
+
